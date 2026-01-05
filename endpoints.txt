@@ -1,0 +1,73 @@
+API Endpoints for RallyTyper Backend
+
+Base URL: /api/v1 (or as configured in .env API_PATH)
+
+Authentication
+--------------
+POST /api/v1/login
+  Body: { "email": "adminCEOforrof32112321@forrof.io", "password": "Pakistan$123." }
+  Response: { "message": "Login successful", "user": { ... } }
+
+Jobs
+----
+GET /api/v1/jobs
+  Description: Get all jobs (ordered by newest).
+  Response: Array of Job objects.
+
+GET /api/v1/jobs/:id
+  Description: Get a single job by ID.
+  Response: Job object.
+
+POST /api/v1/jobs
+  Description: Create a new job.
+  Body: {
+    "title": "Software Engineer",
+    "department": "Engineering",
+    "type": "Full-time",
+    "location": "Remote",
+    "description": "...",
+    "requirements": ["req1", "req2"],  // Array of strings
+    "responsibilities": ["resp1", "resp2"] // Array of strings
+  }
+  Response: { "message": "Job created successfully", "job": { ... } }
+
+PUT /api/v1/jobs/:id
+  Description: Update an existing job.
+  Body: fields to update...
+
+DELETE /api/v1/jobs/:id
+  Description: Delete a job.
+
+Blog Posts
+----------
+GET /api/v1/fetch-blog-posts
+  Description: Get all blog posts.
+  Response: Array of Blog objects.
+
+GET /api/v1/fetch-blog-post/:id
+  Description: Get a single blog post by ID.
+
+GET /api/v1/fetch-blog-post-by-slug/:slug
+  Description: Get a single blog post by slug.
+
+POST /api/v1/insertblogpost
+  Description: Create a new blog post.
+  Content-Type: multipart/form-data
+  Body: 
+    - title, slug, canonical_tag, meta_title, meta_description, meta_keywords, content (text fields)
+    - blogimage (file)
+
+PUT /api/v1/update-blog-post/:id
+  Description: Update a blog post.
+  Content-Type: multipart/form-data (if updating image) or application/json
+
+DELETE /api/v1/delete-blog-post/:id
+  Description: Delete a blog post.
+
+Extras
+------
+GET /api/v1/coffee (I'm a teapot)
+GET /api/v1/why-am-i-here
+POST /api/v1/magic-8-ball
+GET /api/v1/dad-joke
+POST /api/v1/rubber-duck
