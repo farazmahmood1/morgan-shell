@@ -9,6 +9,7 @@ export const blogPosts = pgTable("blog_posts", {
     metaTitle: text("meta_title"),
     metaDescription: text("meta_description"),
     metaKeywords: text("meta_keywords"),
+    metaTags: text("meta_tags"), // Generic meta tags
     content: text("content").notNull(),
     blogImage: text("blogimage"), // URL to the image
     uploadDate: date("upload_date").defaultNow(),

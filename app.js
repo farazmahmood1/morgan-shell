@@ -122,7 +122,7 @@ app.post(`${apipath}/login`, (req, res) => {
 // Create Blog Post
 app.post(`${apipath}/insertblogpost`, uploadMulter.single("blogimage"), async (req, res) => {
   try {
-    const { title, slug, canonical_tag, meta_title, meta_description, meta_keywords, content } = req.body;
+    const { title, slug, canonical_tag, meta_title, meta_description, meta_keywords, meta_tags, content } = req.body;
 
     let imageUrl = "";
     if (req.file) {
@@ -139,6 +139,7 @@ app.post(`${apipath}/insertblogpost`, uploadMulter.single("blogimage"), async (r
       metaTitle: meta_title,
       metaDescription: meta_description,
       metaKeywords: meta_keywords,
+      metaTags: meta_tags,
       content,
       blogImage: imageUrl,
       uploadDate: new Date().toISOString().split('T')[0],
@@ -188,7 +189,7 @@ app.get(`${apipath}/fetch-blog-post-by-slug/:slug`, async (req, res) => {
 app.put(`${apipath}/update-blog-post/:id`, uploadMulter.single("blogimage"), async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
-    const { title, slug, canonical_tag, meta_title, meta_description, meta_keywords, content } = req.body;
+    const { title, slug, canonical_tag, meta_title, meta_description, meta_keywords, meta_tags, content } = req.body;
 
     let updateData = {
       title,
@@ -197,6 +198,7 @@ app.put(`${apipath}/update-blog-post/:id`, uploadMulter.single("blogimage"), asy
       metaTitle: meta_title,
       metaDescription: meta_description,
       metaKeywords: meta_keywords,
+      metaTags: meta_tags,
       content,
     };
 
