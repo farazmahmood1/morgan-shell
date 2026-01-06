@@ -1,4 +1,4 @@
-import { pgTable, serial, text, date, timestamp, } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, date, timestamp, integer } from "drizzle-orm/pg-core";
 
 // Blog Posts Table
 export const blogPosts = pgTable("blog_posts", {
@@ -26,5 +26,17 @@ export const jobs = pgTable("jobs", {
     // Storing arrays as text[] in Postgres
     requirements: text("requirements").array().notNull(),
     responsibilities: text("responsibilities").array().notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Job Applications Table
+export const jobApplications = pgTable("job_applications", {
+    id: serial("id").primaryKey(),
+    jobId: integer("job_id").notNull(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    portfolio: text("portfolio"),
+    coverLetter: text("cover_letter"),
+    cvUrl: text("cv_url").notNull(), // URL from Cloudinary
     createdAt: timestamp("created_at").defaultNow(),
 });

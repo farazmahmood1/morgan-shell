@@ -8,7 +8,7 @@ import bodyParser from "body-parser";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { db } from "./db/index.js";
-import { blogPosts, jobs } from "./db/schema.js";
+import { blogPosts, jobs, jobApplications } from "./db/schema.js";
 import { eq, desc } from "drizzle-orm";
 import os from "os";
 
@@ -18,6 +18,8 @@ const apipath = process.env.API_PATH || "/api/v1";
 
 const allowedOrigins = [
   "http://localhost:8080",
+  "http://localhost:3000",
+  process.env.LIVE_URL
 ];
 
 const corsOptions = {
@@ -54,15 +56,17 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  if (
-    file.mimetype === "image/jpeg" ||
-    file.mimetype === "image/png" ||
-    file.mimetype === "image/gif" ||
-    file.mimetype === "image/webp"
-  ) {
+  const allowedTypes = [
+    "image/jpeg", "image/png", "image/gif", "image/webp",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Only JPEG, PNG, GIF, and WEBP files are allowed!"), false);
+    cb(new Error("Invalid file type. Allowed: Images, PDF, DOC, DOCX"), false);
   }
 };
 
@@ -73,7 +77,7 @@ const uploadMulter = multer({ storage: storage, fileFilter: fileFilter });
 app.get("/", (req, res) => {
   res.json({
     apiVersion: "v2",
-    message: "RallyTyper Backend - Migrated to Neon/Drizzle",
+    message: "morgan Backend - Migrated to Neon/Drizzle",
     endpoints: [
       `${apipath}/login`,
       `${apipath}/jobs`,
@@ -307,6 +311,60 @@ app.delete(`${apipath}/jobs/:id`, async (req, res) => {
     else res.status(404).json({ message: "Job not found" });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// --- JOB APPLICATIONS ---
+
+// Apply for a job
+app.post(`${apipath}/job-applications`, uploadMulter.single("cv"), async (req, res) => {
+  try {
+    const { jobId, name, email, portfolio, coverLetter } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "CV file is required" });
+    }
+
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "job_applications",
+      resource_type: "auto"
+    });
+
+    const newApplication = await db.insert(jobApplications).values({
+      jobId: parseInt(jobId),
+      name,
+      email,
+      portfolio,
+      coverLetter,
+      cvUrl: result.secure_url,
+    }).returning();
+
+    res.json({ message: "Application submitted successfully", application: newApplication[0] });
+  } catch (error) {
+    console.error("Error submitting application:", error);
+    res.status(500).json({ message: "Internal Server Error", error: error.message });
+  }
+});
+
+// Get all applications
+app.get(`${apipath}/job-applications`, async (req, res) => {
+  try {
+    const results = await db.select().from(jobApplications).orderBy(desc(jobApplications.createdAt));
+    res.json(results);
+  } catch (error) {
+    console.error("Error fetching applications:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+// Get single application
+app.get(`${apipath}/job-applications/:id`, async (req, res) => {
+  try {
+    const results = await db.select().from(jobApplications).where(eq(jobApplications.id, parseInt(req.params.id)));
+    if (results.length > 0) res.json(results[0]);
+    else res.status(404).json({ message: "Application not found" });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 

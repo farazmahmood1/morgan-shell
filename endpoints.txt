@@ -1,4 +1,4 @@
-API Endpoints for RallyTyper Backend
+API Endpoints for Morgan Backend
 
 Base URL: /api/v1 (or as configured in .env API_PATH)
 
@@ -19,17 +19,6 @@ GET /api/v1/jobs/:id
   Response: Job object.
 
 POST /api/v1/jobs
-  Description: Create a new job.
-  Body: {
-    "title": "Software Engineer",
-    "department": "Engineering",
-    "type": "Full-time",
-    "location": "Remote",
-    "description": "...",
-    "requirements": ["req1", "req2"],  // Array of strings
-    "responsibilities": ["resp1", "resp2"] // Array of strings
-  }
-  Response: { "message": "Job created successfully", "job": { ... } }
 
 PUT /api/v1/jobs/:id
   Description: Update an existing job.
