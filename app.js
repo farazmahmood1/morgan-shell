@@ -73,7 +73,7 @@ const fileFilter = (req, file, cb) => {
 const uploadMulter = multer({ storage: storage, fileFilter: fileFilter });
 
 // --- ROUTES ---
-
+// --- API ---
 app.get("/", (req, res) => {
   res.json({
     apiVersion: "v2",
