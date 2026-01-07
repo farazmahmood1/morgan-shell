@@ -7,10 +7,13 @@ export const blogPosts = pgTable("blog_posts", {
     slug: text("slug").notNull().unique(),
     canonicalTag: text("canonical_tag"),
     metaTitle: text("meta_title"),
+    author: text("author"),
     metaDescription: text("meta_description"),
+    stack: text("stack"),
     metaKeywords: text("meta_keywords"),
     metaTags: text("meta_tags"), // Generic meta tags
     content: text("content").notNull(),
+    readTime: text("read_time"),
     blogImage: text("blogimage"), // URL to the image
     uploadDate: date("upload_date").defaultNow(),
 });
