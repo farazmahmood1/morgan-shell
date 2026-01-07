@@ -376,6 +376,16 @@ app.get(`${apipath}/job-applications/:id`, async (req, res) => {
   }
 });
 
+app.delete(`${apipath}/job-applications/:id`, async (req, res) => {
+  try {
+    const results = await db.delete(jobApplications).where(eq(jobApplications.id, parseInt(req.params.id)));
+    if (results.rowsDeleted > 0) res.json({ message: "Application deleted successfully" });
+    else res.status(404).json({ message: "Application not found" });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 // --- EXTRAS ---
 const extras = [
   { path: `${apipath}/coffee`, method: "GET", description: "Returns 418 - I'm a teapot" },
