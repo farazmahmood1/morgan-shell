@@ -18,8 +18,11 @@ const apipath = process.env.API_PATH || "/api/v1";
 
 const allowedOrigins = [
   "http://localhost:8080",
+  "http://localhost:3000",
+  "https://forrof.io",
+  "https://www.forrof.io",
   process.env.LIVE_URL
-];
+].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {
