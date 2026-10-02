@@ -11,6 +11,7 @@ import { db } from "./db/index.js";
 import { blogPosts, jobs, jobApplications } from "./db/schema.js";
 import { eq, desc } from "drizzle-orm";
 import os from "os";
+import crypto from "crypto";
 
 const app = express();
 const port = 3000;
@@ -39,6 +40,8 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+
 
 // Cloudinary Config
 cloudinary.config({
@@ -88,13 +91,61 @@ app.get("/", (req, res) => {
   });
 });
 
-// LOGIN (Static)
+// --- AUTH ---
+const TOKEN_TTL_SECONDS = 60 * 60 * 12;
+
+const base64url = (value) => Buffer.from(value).toString("base64url");
+
+const signPart = (data) =>
+  crypto.createHmac("sha256", process.env.JWT_SECRET).update(data).digest("base64url");
+
+const safeEqual = (a, b) => {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+};
+
+// JWT (HS256)
+const signToken = (payload) => {
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = base64url(JSON.stringify({ ...payload, iat: now, exp: now + TOKEN_TTL_SECONDS }));
+  return `${header}.${body}.${signPart(`${header}.${body}`)}`;
+};
+
+const verifyToken = (token) => {
+  if (!process.env.JWT_SECRET || !token) return null;
+  const [header, body, signature] = token.split(".");
+  if (!header || !body || !signature) return null;
+  if (!safeEqual(signature, signPart(`${header}.${body}`))) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString());
+    if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+};
+
+const requireAdmin = (req, res, next) => {
+  const [scheme, token] = (req.headers.authorization || "").split(" ");
+  const payload = scheme === "Bearer" ? verifyToken(token) : null;
+  if (!payload || payload.role !== "admin") {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  req.user = payload;
+  next();
+};
+
+// LOGIN
 app.post(`${apipath}/login`, (req, res) => {
   const { email, password } = req.body;
+  const { ADMIN_EMAIL, ADMIN_PASSWORD, JWT_SECRET } = process.env;
 
-  // Static Credentials
-  const ADMIN_EMAIL = "adminCEOforrof32112321@forrof.io";
-  const ADMIN_PASS = "Pakistan$123.";
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !JWT_SECRET) {
+    console.error("ADMIN_EMAIL, ADMIN_PASSWORD and JWT_SECRET must be set");
+    return res.status(500).json({ message: "Login is not configured" });
+  }
 
   if (!email || !password) {
     return res.status(400).json({
@@ -102,10 +153,11 @@ app.post(`${apipath}/login`, (req, res) => {
     });
   }
 
-  if (email === ADMIN_EMAIL && password === ADMIN_PASS) {
+  if (safeEqual(email, ADMIN_EMAIL) && safeEqual(password, ADMIN_PASSWORD)) {
     res.status(200).json({
       message: "Login successful",
       success: true,
+      token: signToken({ email, role: "admin" }),
       user: {
         email: email,
         role: "admin",
@@ -119,10 +171,15 @@ app.post(`${apipath}/login`, (req, res) => {
   }
 });
 
+// Current session
+app.get(`${apipath}/me`, requireAdmin, (req, res) => {
+  res.json({ user: { email: req.user.email, role: req.user.role } });
+});
+
 // --- BLOG POSTS ---
 
 // Create Blog Post
-app.post(`${apipath}/insertblogpost`, uploadMulter.single("blogimage"), async (req, res) => {
+app.post(`${apipath}/insertblogpost`, requireAdmin, uploadMulter.single("blogimage"), async (req, res) => {
   try {
     const { title, slug, canonical_tag, meta_title, meta_description, meta_keywords, meta_tags, content, author, stack, read_time } = req.body;
 
@@ -191,7 +248,7 @@ app.get(`${apipath}/fetch-blog-post-by-slug/:slug`, async (req, res) => {
 });
 
 // Update Blog Post
-app.put(`${apipath}/update-blog-post/:id`, uploadMulter.single("blogimage"), async (req, res) => {
+app.put(`${apipath}/update-blog-post/:id`, requireAdmin, uploadMulter.single("blogimage"), async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
     const { title, slug, canonical_tag, meta_title, meta_description, meta_keywords, meta_tags, content, author, stack, read_time } = req.body;
@@ -229,7 +286,7 @@ app.put(`${apipath}/update-blog-post/:id`, uploadMulter.single("blogimage"), asy
 });
 
 // Delete Blog Post
-app.delete(`${apipath}/delete-blog-post/:id`, async (req, res) => {
+app.delete(`${apipath}/delete-blog-post/:id`, requireAdmin, async (req, res) => {
   try {
     const results = await db.delete(blogPosts).where(eq(blogPosts.id, parseInt(req.params.id))).returning();
     if (results.length > 0) res.json({ message: "Blog post deleted successfully" });
@@ -265,7 +322,7 @@ app.get(`${apipath}/jobs/:id`, async (req, res) => {
 });
 
 // Create job
-app.post(`${apipath}/jobs`, async (req, res) => {
+app.post(`${apipath}/jobs`, requireAdmin, async (req, res) => {
   try {
     // Handle array fields if they come as strings
     let { requirements, responsibilities, ...rest } = req.body;
@@ -287,7 +344,7 @@ app.post(`${apipath}/jobs`, async (req, res) => {
 });
 
 // Update job
-app.put(`${apipath}/jobs/:id`, async (req, res) => {
+app.put(`${apipath}/jobs/:id`, requireAdmin, async (req, res) => {
   try {
     // Handle array fields
     let { requirements, responsibilities, ...rest } = req.body;
@@ -314,7 +371,7 @@ app.put(`${apipath}/jobs/:id`, async (req, res) => {
 });
 
 // Delete job
-app.delete(`${apipath}/jobs/:id`, async (req, res) => {
+app.delete(`${apipath}/jobs/:id`, requireAdmin, async (req, res) => {
   try {
     const results = await db.delete(jobs).where(eq(jobs.id, parseInt(req.params.id))).returning();
     if (results.length > 0) res.json({ message: "Job deleted successfully" });
@@ -357,7 +414,7 @@ app.post(`${apipath}/job-applications`, uploadMulter.single("cv"), async (req, r
 });
 
 // Get all applications
-app.get(`${apipath}/job-applications`, async (req, res) => {
+app.get(`${apipath}/job-applications`, requireAdmin, async (req, res) => {
   try {
     const results = await db.select().from(jobApplications).orderBy(desc(jobApplications.createdAt));
     res.json(results);
@@ -368,7 +425,7 @@ app.get(`${apipath}/job-applications`, async (req, res) => {
 });
 
 // Get single application
-app.get(`${apipath}/job-applications/:id`, async (req, res) => {
+app.get(`${apipath}/job-applications/:id`, requireAdmin, async (req, res) => {
   try {
     const results = await db.select().from(jobApplications).where(eq(jobApplications.id, parseInt(req.params.id)));
     if (results.length > 0) res.json(results[0]);
@@ -378,7 +435,7 @@ app.get(`${apipath}/job-applications/:id`, async (req, res) => {
   }
 });
 
-app.delete(`${apipath}/job-applications/:id`, async (req, res) => {
+app.delete(`${apipath}/job-applications/:id`, requireAdmin, async (req, res) => {
   try {
     const results = await db.delete(jobApplications).where(eq(jobApplications.id, parseInt(req.params.id)));
     if (results.rowsDeleted > 0) res.json({ message: "Application deleted successfully" });
